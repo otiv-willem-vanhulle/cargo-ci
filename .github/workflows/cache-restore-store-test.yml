@@ -17,7 +17,8 @@ jobs:
         run: sudo apt-get install -y rustup
 
       - name: Restore Cargo cache
-        uses: actions/cache@v4
+        id: cache-restore
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/.cargo
@@ -26,3 +27,20 @@ jobs:
 
       - name: Write to target
         run: cargo build
+
+      - name: Delete Previous Cache
+        if: ${{ steps.cache-restore.outputs.cache-hit }}
+        continue-on-error: true
+        run: |
+          gh extension install actions/gh-actions-cache
+          gh actions-cache delete "${{ runner.os }}-restore-build" --confirm
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+      - name: Save Cargo cache
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cargo
+            target
+          key: ${{ runner.os }}-restore-build
