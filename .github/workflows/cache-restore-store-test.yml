@@ -36,6 +36,7 @@ jobs:
             ~/.cargo
             target
           key: ${{ runner.os }}-restore-build
+          # Try to see whether removing .target from cache had any effect.
 
       - name: Restore timestamps
         run: ./restore-mtimes.sh target/mtimes.txt || true
