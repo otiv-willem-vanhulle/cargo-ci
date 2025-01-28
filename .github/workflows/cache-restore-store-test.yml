@@ -85,6 +85,7 @@ jobs:
             ~/.rustup
             target
           key: ${{ runner.os }}-restore-clippy
+          # Added a comment in non-rust source files to see if compiler is smart enough not to recompile
 
   test-test:
         name: Test test
