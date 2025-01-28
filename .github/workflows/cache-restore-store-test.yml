@@ -23,6 +23,7 @@ jobs:
             ~/.cargo
             target
           key: ${{ runner.os }}-restore-build
+          # Trying non-Rust source code change.
 
       - name: Write to target
         run: cargo build
