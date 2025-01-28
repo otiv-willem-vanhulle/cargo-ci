@@ -7,6 +7,8 @@ jobs:
   test-restore-build:
     name: Test restore compile and store
     runs-on: ubuntu-24.04
+    permissions:
+           actions: write
     steps:
       - uses: actions/checkout@v4
 
@@ -31,6 +33,7 @@ jobs:
       - name: Delete Previous Cache
         if: ${{ steps.cache-restore.outputs.cache-hit }}
         continue-on-error: true
+        
         run: |
           gh extension install actions/gh-actions-cache
           gh actions-cache delete "${{ runner.os }}-restore-build" --confirm
