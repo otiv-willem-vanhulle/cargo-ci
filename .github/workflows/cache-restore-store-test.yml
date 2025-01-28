@@ -18,39 +18,92 @@ jobs:
     name: Test restore compile and store
     runs-on: ubuntu-24.04
     if: github.event.pull_request.draft == false
+    permissions:
+       # Necessary to remove old cache
+       actions: write
+       # To be able to clone repository
+       contents: read
     env:
       CARGO_LOG: cargo::core::compiler::fingerprint=info
+      CARGO_CACHE_KEY: restore-build
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up cache directory for APT
+        run: mkdir -p /home/runner/apt-cache/archives
+          
+      - name: Restore cached APT packages
+        uses: actions/cache/restore@v3
+        id: apt-cache-restore
+        with:
+          path: /home/runner/apt-cache/archives
+          key: ${{ runner.os }}-apt-${{ hashFiles('apt-packages.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
+      - name: Configure APT to use cache directory
+        run: |
+          sudo chown -R root:root $HOME/apt-cache
+          sudo chmod -R 755 $HOME/apt-cache
+          echo 'Dir::Cache::archives "/home/runner/apt-cache/archives";' | sudo tee /etc/apt/apt.conf.d/99apt-cache
 
       - name: Update APT package index
         run: sudo apt-get update
         
-      - name: Install and download required APT packages
+      - name: Install and download required `.deb` packages
         run: sudo apt-get install -y $(cat apt-packages.txt)
+      
+      - name: Remove lock files from `.deb` cache
+        run: |
+          sudo rm -f $HOME/apt-cache/archives/lock
+          sudo rm -rf $HOME/apt-cache/archives/partial
+      
+      - name: Check `.deb` cache usage
+        run: ls -lh $HOME/apt-cache/archives
+
+      - name: Save `.deb` packages to cache
+        uses: actions/cache/save@v3
+        if: ${{ steps.apt-cache-restore.outputs.cache-hit == false }}
+        with:
+          path: /home/runner/apt-cache/archives
+          key: ${{ runner.os }}-apt-${{ hashFiles('apt-packages.txt') }}
 
       - name: Restore Cargo cache
         uses: actions/cache/restore@v4
+        id: cargo-cache-restore-action
         with:
           path: |
             ~/.cargo
+            ~/.rustup
             target
-          key: ${{ runner.os }}-restore-build
-          # Try to see whether removing .target from cache had any effect.
+          key: ${{ runner.os }}-${{ env.CARGO_CACHE_KEY }}-${{ hashFiles( 'Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ env.CARGO_CACHE_KEY }}-
 
-      - name: Restore timestamps
-        run: ./restore-mtimes.sh target/mtimes.txt || true
+      - name: Restore modification timestamps
+        continue-on-error: true
+        run: ./restore-mtimes.sh target/mtimes.txt
 
-      - name: Write to target
+      - name: Build workspace
         run: cargo build
     
-      - name: Store timestamps
+      - name: Store modification timestamps
         run: ./save-mtimes.sh target/mtimes.txt
+
+      - name: Delete previous Cargo cache
+        if: ${{ steps.cargo-cache-restore-action.outputs.cache-hit }}
+        run: |
+          gh extension install actions/gh-actions-cache
+          gh actions-cache delete "${{ steps.cargo-cache-restore-action.outputs.cache-primary-key }}" --confirm
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
       - name: Save Cargo cache
         uses: actions/cache/save@v4
         with:
           path: |
             ~/.cargo
+            ~/.rustup
             target
-          key: ${{ runner.os }}-restore-build
+          key: ${{ runner.os }}-${{ env.CARGO_CACHE_KEY }}-${{ hashFiles( 'Cargo.lock') }}
