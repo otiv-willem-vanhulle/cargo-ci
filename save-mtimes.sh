@@ -8,13 +8,6 @@ fi
 
 MTIMES_FILE="$1"
 
-# Check if the destination directory exists
-if [ ! -f "$MTIMES_FILE" ]; then
-  echo "Error: Destination directory does not exist."
-  exit 1
-fi
-
-
 # Clear the file or create a new one
 > "$MTIMES_FILE"
 
