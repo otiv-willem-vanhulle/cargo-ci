@@ -12,9 +12,6 @@ on:
       - reopened
       - synchronize
       - ready_for_review
-# permissions:
-#   actions: write
-#   contents: read
 jobs:
 
   test-restore-build:
@@ -40,7 +37,6 @@ jobs:
             ~/.rustup
             target
           key: ${{ runner.os }}-restore-build
-
 
       - name: Write to target
         run: cargo build
