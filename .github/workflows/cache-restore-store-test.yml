@@ -1,0 +1,133 @@
+name: Rust test workflow
+on:
+  push:
+    branches:
+      - 'main' 
+      # Run this workflow on main branch on push to populate the cache there and make it available for PRs.
+  pull_request:
+    branches:
+      - 'main'
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+# permissions:
+#   actions: write
+#   contents: read
+jobs:
+
+  test-restore-build:
+    name: Test restore compile and store
+    runs-on: ubuntu-24.04
+    if: github.event.pull_request.draft == false
+    env:
+      CARGO_LOG: cargo::core::compiler::fingerprint=info
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update APT package index
+        run: sudo apt-get update
+        
+      - name: Install and download required APT packages
+        run: sudo apt-get install -y $(cat apt-packages.txt)
+
+      - name: Restore Cargo cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cargo
+            ~/.rustup
+            target
+          key: ${{ runner.os }}-restore-build
+
+
+      - name: Write to target
+        run: cargo build
+    
+      - name: Save Cargo cache
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cargo
+            ~/.rustup
+            target
+          key: ${{ runner.os }}-restore-build
+
+  test-restore-clippy:
+    name: Test restore clippy
+    runs-on: ubuntu-24.04
+    if: github.event.pull_request.draft == false
+    env:
+      CARGO_LOG: cargo::core::compiler::fingerprint=info
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update APT package index
+        run: sudo apt-get update
+        
+      - name: Install and download required APT packages
+        run: sudo apt-get install -y $(cat apt-packages.txt)
+
+      - name: Restore Cargo cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cargo
+            ~/.rustup
+            target
+          key: ${{ runner.os }}-restore-clippy
+
+      - name: Write to target
+        run: cargo clippy 
+    
+      - name: Save Cargo cache
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cargo
+            ~/.rustup
+            target
+          key: ${{ runner.os }}-restore-clippy
+
+  test-test:
+        name: Test test
+        runs-on: ubuntu-24.04
+        if: github.event.pull_request.draft == false
+        env:
+            CARGO_LOG: cargo::core::compiler::fingerprint=info
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Update APT package index
+              run: sudo apt-get update
+            
+            - name: Install and download required APT packages
+              run: sudo apt-get install -y $(cat apt-packages.txt)
+
+            - name: Restore Cargo cache
+              uses: actions/cache/restore@v4
+              with:
+                path: |
+                    ~/.cargo
+                    ~/.rustup
+                    target
+                key: ${{ runner.os }}-restore-test
+
+            - name: Write to target
+              run: cargo test --no-run
+
+            - name: Write to target
+              run: cargo test
+
+
+        
+            - name: Save Cargo cache
+              uses: actions/cache/save@v4
+              with:
+                path: |
+                    ~/.cargo
+                    ~/.rustup
+                    target
+                key: ${{ runner.os }}-restore-test
+                #
